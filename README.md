@@ -34,17 +34,114 @@ The architecture features a custom Virtual Private Cloud (VPC) divided into thre
 
 The goal of this stage is to establish the networking foundation for the multi-tier architecture. Instead of using the `default` network, we implement a Custom Mode VPC Network. This provides full control over the IP address ranges and prevents unauthorized access by ensuring no subnets are created automatically in unwanted regions.
 
+> [!NOTE]
+> Remember to set project when using CLI (not setting project can cause issues, if there's more than one) \
+> `gcloud config set project my-project-name`
+
 <details>
-<summary> Create custom network using CLI: </summary>
+<summary> Set environment variables: </summary>
+Setting variables is not mandatory. but it makes work easier and can prevent potential typos 
   
 ```
-# Set Project 
-gcloud config set project my-project-name
+REGION="us-central1" # pick desired region
+NETWORK="secure-vpc" # enter your VPC network name
+```
+</details>
 
-# Create Custom Mode VPC Network
-gcloud compute networks create my-vpc-network \
+<details>
+<summary> Create Custom Mode VPC Network: </summary>
+  
+```
+gcloud compute networks create $NETWORK \
     --subnet-mode=custom \
     --description="VPC Network for Secure Architecture with IAM and Bastion Host" \
     --bgp-routing-mode=regional
+```
+</details>
+
+<details>
+<summary> Create Subnets: </summary>
+  
+```
+# Public subnet
+gcloud compute networks subnets create subnet-public \
+    --network=$NETWORK \
+    --region=$REGION \
+    --range=10.1.0.0/24 \
+    --description="Public subnet for Secure VPC"
+
+# Private subnet
+gcloud compute networks subnets create subnet-private \
+    --network=$NETWORK \
+    --region=$REGION \
+    --range=10.2.0.0/24 \
+    --enable-private-ip-google-access \
+    --description="Private subnet for Secure VPC"
+
+# Management subnet
+gcloud compute networks subnets create subnet-mgmt \
+    --network=$NETWORK \
+    --region=$REGION \
+    --range=10.3.0.0/24 \
+    --enable-private-ip-google-access \
+    --description="Management subnet for Secure VPC"
+```
+
+> `--enable-private-ip-google-access` \
+> This is not mandatory, but a good practice to avoid additional costs.
+> Without it, traffic from private subnets to Google services will go through Cloud NAT — and each such transfer incurs additional costs.
+
+</details>
+
+<details>
+<summary> Create Firewall Rules: </summary>
+  
+```
+# SSH for Bastion Host
+gcloud compute firewall-rules create ${NETWORK}-allow-ssh-bastion \
+    --network=$NETWORK \
+    --allow=tcp:22 \
+    --source-ranges=0.0.0.0/0 \
+    --direction=INGRESS \
+    --target-tags=bastion \
+    --description="Allow SSH to Bation Host from anywhere"
+
+# Allow internal communication
+gcloud compute firewall-rules create ${NETWORK}-allow-internal \
+    --network=$NETWORK \
+    --allow=all \
+    --direction=INGRESS \
+    --source-ranges=10.0.0.0/16 \
+    --description="Allow internal traffic between all subnets"
+
+```
+</details>
+
+<details>
+<summary> Create VMs: </summary>
+  
+```
+# Bastion Host
+gcloud compute instances create vm-bastion \
+    --zone=${REGION}-a \
+    --network-interface=subnet=subnet-public \
+    --machine-type=e2-micro # feel free to pick another type
+    --tags=bastion
+
+# App / regular VM in created VPC network
+gcloud compute instances create vm-app \
+    --zone=${REGION}-a \
+    --no-address \ # no external IP
+    --network-interface=subnet=subnet-private \
+    --machine-type=e2-micro # feel free to pick another type
+    --tags=backend
+
+# Mgmt
+gcloud compute instances create vm-mgmt \
+    --zone=${REGION}-a \
+    --no-address \ # no external IP
+    --network-interface=subnet=subnet-mgmt \
+    --machine-type=e2-micro # feel free to pick another type
+    --tags=mgmt
 ```
 </details>
