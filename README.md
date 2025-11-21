@@ -208,4 +208,24 @@ gcloud compute routers nats create nat-config \
 
 </details>
 
+<details>
+<summary> Monitoring </summary>
+
+Install Ops Agent (each VM)
+```
+curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+sudo bash add-google-cloud-ops-agent-repo.sh --also-install
+
+```
+Create NAT
+```
+gcloud compute routers nats create nat-config \
+    --region=$REGION \
+    --router=router-nat \
+    --auto-allocate-nat-external-ips \
+    --nat-all-subnet-ip-ranges
+```
+
+</details>
+
 dostanie sie do vm -> log na bastion -> gcloud auth login na swojego maila (servisowe ktore jest z defaultu nie ma uprawnien) -> gcloud compute ssh vm-app --internal-ip
