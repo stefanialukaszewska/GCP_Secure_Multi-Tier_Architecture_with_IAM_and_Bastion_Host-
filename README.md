@@ -18,7 +18,7 @@ The architecture features a custom Virtual Private Cloud (VPC) divided into thre
 
 - Outbound Connectivity: Configuration of Cloud NAT to allow private instances to pull updates and patches without exposing public IP addresses.
 
-- Traffic Control: Implementation of strict Firewall Rules and Service Accounts to filter traffic and ensure communication occurs only on specific, authorized ports.
+- Traffic Control: Implementation of strict Firewall Rules to filter traffic and ensure communication occurs only on specific, authorized ports.
 
 - Observability: Integration with Cloud Monitoring for infrastructure oversight.
 
