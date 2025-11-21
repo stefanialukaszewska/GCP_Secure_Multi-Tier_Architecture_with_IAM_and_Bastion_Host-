@@ -49,7 +49,7 @@ NETWORK="secure-vpc" # enter your VPC network name
 </details>
 
 <details>
-<summary> Create Custom Mode VPC Network: </summary>
+<summary> Create Custom Mode VPC Network </summary>
   
 ```
 gcloud compute networks create $NETWORK \
@@ -60,7 +60,7 @@ gcloud compute networks create $NETWORK \
 </details>
 
 <details>
-<summary> Create Subnets: </summary>
+<summary> Create Subnets </summary>
   
 ```
 # Public subnet
@@ -94,7 +94,7 @@ gcloud compute networks subnets create subnet-mgmt \
 </details>
 
 <details>
-<summary> Create Firewall Rules: </summary>
+<summary> Create Firewall Rules </summary>
   
 ```
 # SSH for Bastion Host
@@ -104,44 +104,108 @@ gcloud compute firewall-rules create ${NETWORK}-allow-ssh-bastion \
     --source-ranges=0.0.0.0/0 \
     --direction=INGRESS \
     --target-tags=bastion \
-    --description="Allow SSH to Bation Host from anywhere"
+    --description="Allow SSH to Bastion Host from anywhere"
 
 # Allow internal communication
-gcloud compute firewall-rules create ${NETWORK}-allow-internal \
+gcloud compute firewall-rules create ${NETWORK}-allow-internal-limited \
     --network=$NETWORK \
-    --allow=all \
+    --allow=tcp:22,tcp:80,tcp:443,tcp:8080,udp:0-65535,icmp  \
     --direction=INGRESS \
-    --source-ranges=10.0.0.0/16 \
-    --description="Allow internal traffic between all subnets"
+    --source-ranges=10.0.0.0/8 \
+    --description="Allow limited internal traffic between all subnets"
 
 ```
 </details>
 
 <details>
-<summary> Create VMs: </summary>
+<summary> Enable OS Login </summary>
   
+```
+gcloud compute project-info add-metadata \
+    --metadata enable-oslogin=TRUE
+```
+</details>
+
+<details>
+<summary> Create VMs </summary>
+
+Create static IP for Bastion Host (not mandatory)
+```
+gcloud compute addresses create bastion-ip \
+    --region=$REGION \
+    --description="Static external IP for Bastion Host"
+```
+
+Create VMs:
 ```
 # Bastion Host
 gcloud compute instances create vm-bastion \
     --zone=${REGION}-a \
-    --network-interface=subnet=subnet-public \
-    --machine-type=e2-micro # feel free to pick another type
+    --subnet=subnet-public \
+    --machine-type=e2-micro \
+    --address=bastion-ip \
     --tags=bastion
 
 # App / regular VM in created VPC network
 gcloud compute instances create vm-app \
     --zone=${REGION}-a \
-    --no-address \ # no external IP
-    --network-interface=subnet=subnet-private \
-    --machine-type=e2-micro # feel free to pick another type
-    --tags=backend
+    --subnet=subnet-private \
+    --no-address \
+    --machine-type=e2-micro \
+    --tags=private
 
 # Mgmt
 gcloud compute instances create vm-mgmt \
     --zone=${REGION}-a \
-    --no-address \ # no external IP
-    --network-interface=subnet=subnet-mgmt \
-    --machine-type=e2-micro # feel free to pick another type
+    --subnet=subnet-mgmt \
+    --no-address \
+    --machine-type=e2-micro \
     --tags=mgmt
 ```
 </details>
+
+<details>
+<summary> Grant IAM roles </summary>
+
+```
+PROJECT_ID=$(gcloud config get-value project)
+```
+
+### Every user requires `Compute OS Login`/`Compute OS Admin Login` role to utilize OS Login. 
+
+```
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="user:example@example.com" \
+    --role="roles/compute.osLogin"
+```
+### Every user requires `Service Account User` role to access VMs.
+
+```
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="user:example@example.com" \
+    --role="roles/iam.serviceAccountUser"
+```
+
+</details>
+
+</details>
+
+<details>
+<summary> Cloud NAT </summary>
+
+Create router
+```
+gcloud compute routers create router-nat --network=$NETWORK --region=$REGION
+```
+Create NAT
+```
+gcloud compute routers nats create nat-config \
+    --region=$REGION \
+    --router=router-nat \
+    --auto-allocate-nat-external-ips \
+    --nat-all-subnet-ip-ranges
+```
+
+</details>
+
+dostanie sie do vm -> log na bastion -> gcloud auth login na swojego maila (servisowe ktore jest z defaultu nie ma uprawnien) -> gcloud compute ssh vm-app --internal-ip
