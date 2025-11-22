@@ -219,8 +219,6 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 </details>
 
-</details>
-
 ### Step 5: Monitoring & Observability
 
 The final implementation step adds operational visibility to the environment. By enabling Cloud Monitoring and Cloud Logging APIs and installing the Ops Agent on each VM, we collect metrics (CPU, memory, disk, network) and system logs (including SSH/auth events). This allows administrators to build dashboards, define alerting policies, and detect anomalies or potential security incidents across all tiers of the architecture.
@@ -286,7 +284,7 @@ Dataflow Diagram
 To access VMs in private subnets (private and mgmt) user (with proper permissions):
 1. Accesses Bastion Host via OS Login, use `gcloud compute ssh vm-bastion --zone=${REGION}-a`
 2. Needs to `gcloud auth login` in CLI to switch from the default logged service account (which do not have needed permissions) to their account
-3. Use `gcloud compute ssh vm-app --internal-ip` or `gcloud compute ssh vm-mgmt --internal-ip` -> flag `--internal-ip` is ised, as those VMs do not possess external IP
+3. Use `gcloud compute ssh vm-app --internal-ip` or `gcloud compute ssh vm-mgmt --internal-ip` -> flag `--internal-ip` is used, as those VMs do not possess external IP
 
 </details>
 
