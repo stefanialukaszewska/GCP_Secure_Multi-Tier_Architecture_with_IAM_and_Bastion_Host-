@@ -202,14 +202,14 @@ With OS Login and the compute layer in place, this step assigns IAM roles requir
 PROJECT_ID=$(gcloud config get-value project)
 ```
 
-### Every user requires `Compute OS Login`/`Compute OS Admin Login` role to utilize OS Login. 
+Every user requires `Compute OS Login`/`Compute OS Admin Login` role to utilize OS Login. 
 
 ```
 gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="user:example@example.com" \
     --role="roles/compute.osLogin"
 ```
-### Every user requires `Service Account User` role to access VMs.
+Every user requires `Service Account User` role to access VMs.
 
 ```
 gcloud projects add-iam-policy-binding $PROJECT_ID \
