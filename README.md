@@ -14,7 +14,7 @@ The architecture features a custom Virtual Private Cloud (VPC) divided into thre
   - **Private Subnet:** Hosted workloads isolated from the internet.
   - **Management Subnet:** Dedicated for administrative tools and monitoring.
 
-- Secure Access Management: Deployment of a hardened Bastion Host serving as the single point of entry (Jump Server), utilizing IAM-based OS Login for granular user authentication (eliminating management of static SSH keys).
+- Secure Access Management: Deployment of a hardened Bastion Host serving as the single point of entry, utilizing IAM-based OS Login for granular user authentication (eliminating management of static SSH keys).
 
 - Outbound Connectivity: Configuration of Cloud NAT to allow private instances to pull updates and patches without exposing public IP addresses.
 
