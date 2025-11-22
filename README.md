@@ -268,10 +268,10 @@ Install Tools:
 sudo apt update
 sudo apt install -y nmap netcat-openbsd curl iperf3 tcpdump
 ```
-nmap: For port scanning and network discovery.
-netcat (nc): For testing TCP/UDP connectivity.
-curl: For testing HTTP responses from internal apps.
-tcpdump: For packet analysis.
+ - nmap: For port scanning and network discovery.
+ - netcat (nc): For testing TCP/UDP connectivity.
+ - curl: For testing HTTP responses from internal apps.
+ - tcpdump: For packet analysis.
 
 </details>
 
