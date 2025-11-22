@@ -30,7 +30,6 @@ The architecture features a custom Virtual Private Cloud (VPC) divided into thre
 
 ## Stage 2: Implementation
 ### Step 1: Network Architecture & VPC Setup
-**Objective**
 
 The goal of this stage is to establish the networking foundation for the multi-tier architecture. Instead of using the `default` network, we implement a Custom Mode VPC Network. This provides full control over the IP address ranges and prevents unauthorized access by ensuring no subnets are created automatically in unwanted regions.
 
@@ -39,7 +38,7 @@ The goal of this stage is to establish the networking foundation for the multi-t
 > `gcloud config set project my-project-name`
 
 <details>
-<summary> Set environment variables: </summary>
+<summary> Set environment variables </summary>
 Setting variables is not mandatory. but it makes work easier and can prevent potential typos 
   
 ```
@@ -93,6 +92,10 @@ gcloud compute networks subnets create subnet-mgmt \
 
 </details>
 
+### Step 2: Firewall Rules implementation
+
+In this step we define firewall rules that enforce controlled traffic flows between tiers. The goal is to expose only the Bastion Host to the internet over SSH, while keeping application and management workloads reachable exclusively through internal communication. Separate ingress and internal rules help implement the Principle of Least Privilege at the network level.
+
 <details>
 <summary> Create Firewall Rules </summary>
   
@@ -115,7 +118,13 @@ gcloud compute firewall-rules create ${NETWORK}-allow-internal-limited \
     --description="Allow limited internal traffic between all subnets"
 
 ```
+> The `--source-ranges=0.0.0.0/0` configuration for the Bastion Host is used for demonstration purposes only.
+> In a production environment, this rule should be restricted to trusted IP ranges (e.g., corporate office ranges, VPN egress IPs, or dedicated jump network).
 </details>
+
+### Step 3: OS Login, Compute Instances & Cloud NAT
+
+This step focuses on creating the compute layer and ensuring secure connectivity. OS Login is enabled to centralize SSH access control through IAM identities. The Bastion Host is deployed in the public subnet with an external IP, while application and management VMs are created without public addresses in their respective private subnets. Cloud NAT is then configured to provide these private instances with outbound internet access (for updates and patches) without exposing them directly to the public internet.
 
 <details>
 <summary> Enable OS Login </summary>
@@ -165,6 +174,28 @@ gcloud compute instances create vm-mgmt \
 </details>
 
 <details>
+<summary> Cloud NAT </summary>
+
+Create router
+```
+gcloud compute routers create router-nat --network=$NETWORK --region=$REGION
+```
+Create NAT
+```
+gcloud compute routers nats create nat-config \
+    --region=$REGION \
+    --router=router-nat \
+    --auto-allocate-nat-external-ips \
+    --nat-all-subnet-ip-ranges
+```
+
+</details>
+
+### Step 4: IAM Roles & Least Privilege Access Control
+
+With OS Login and the compute layer in place, this step assigns IAM roles required for users to access virtual machines. The goal is to ensure that only authorized identities can initiate SSH sessions and act as service account users, while preserving least privilege. Permissions are granted at the project level, but could be further restricted in a production environment.
+
+<details>
 <summary> Grant IAM roles </summary>
 
 ```
@@ -190,42 +221,31 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 </details>
 
-<details>
-<summary> Cloud NAT </summary>
+### Step 5: Monitoring & Observability
 
-Create router
+The final implementation step adds operational visibility to the environment. By enabling Cloud Monitoring and Cloud Logging APIs and installing the Ops Agent on each VM, we collect metrics (CPU, memory, disk, network) and system logs (including SSH/auth events). This allows administrators to build dashboards, define alerting policies, and detect anomalies or potential security incidents across all tiers of the architecture.
+
+
+<details>
+<summary> Enable Cloud Monitoring & Logging APIs </summary>
+
 ```
-gcloud compute routers create router-nat --network=$NETWORK --region=$REGION
-```
-Create NAT
-```
-gcloud compute routers nats create nat-config \
-    --region=$REGION \
-    --router=router-nat \
-    --auto-allocate-nat-external-ips \
-    --nat-all-subnet-ip-ranges
+gcloud services enable monitoring.googleapis.com logging.googleapis.com
 ```
 
 </details>
 
 <details>
-<summary> Monitoring </summary>
-
+<summary> Ops Agents </summary>
+  
 Install Ops Agent (each VM)
 ```
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install
-
 ```
-Create NAT
-```
-gcloud compute routers nats create nat-config \
-    --region=$REGION \
-    --router=router-nat \
-    --auto-allocate-nat-external-ips \
-    --nat-all-subnet-ip-ranges
-```
-
 </details>
+
+## Stage 3: Usage
+<img width="2549" height="1460" alt="DFD" src="https://github.com/user-attachments/assets/eb8c97b5-9ed5-46bc-b4c1-95d264768086" />
 
 dostanie sie do vm -> log na bastion -> gcloud auth login na swojego maila (servisowe ktore jest z defaultu nie ma uprawnien) -> gcloud compute ssh vm-app --internal-ip
