@@ -245,7 +245,95 @@ sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 ```
 </details>
 
-## Stage 3: Usage
+### Step 6: Add-ons - management VM
+
+The Management VM (vm-mgmt) serves as a strictly internal control node. In a full-scale production environment, this node would typically host:
+ - Automation Tools: Ansible or Terraform for Infrastructure as Code (IaC) management.
+ - Centralized Logging: Lightweight log collectors.
+ - Databases Administration: Clients for secure DB access.
+
+For the purpose of this demonstration, we configure this node as a Network Security Audit Station to validate firewall rules and internal connectivity.
+
+<details> 
+<summary> Install Audit Tools </summary>
+
+Access the Management VM via Bastion and install network diagnostic tools:
+
+Login to Management VM (from Bastion Host):
+```
+gcloud compute ssh vm-mgmt --internal-ip
+```
+Install Tools:
+```
+sudo apt update
+sudo apt install -y nmap netcat-openbsd curl iperf3 tcpdump
+```
+nmap: For port scanning and network discovery.
+netcat (nc): For testing TCP/UDP connectivity.
+curl: For testing HTTP responses from internal apps.
+tcpdump: For packet analysis.
+
+</details>
+
+## Stage 3: Summary
+
+Dataflow Diagram
 <img width="2549" height="1460" alt="DFD" src="https://github.com/user-attachments/assets/eb8c97b5-9ed5-46bc-b4c1-95d264768086" />
 
-dostanie sie do vm -> log na bastion -> gcloud auth login na swojego maila (servisowe ktore jest z defaultu nie ma uprawnien) -> gcloud compute ssh vm-app --internal-ip
+<details>
+<summary> Access </summary>
+  
+To access VMs in private subnets (private and mgmt) user (with proper permissions):
+1. Accesses Bastion Host via OS Login, use `gcloud compute ssh vm-bastion --zone=${REGION}-a`
+2. Needs to `gcloud auth login` in CLI to switch from the default logged service account (which do not have needed permissions) to their account
+3. Use `gcloud compute ssh vm-app --internal-ip` or `gcloud compute ssh vm-mgmt --internal-ip` -> flag `--internal-ip` is ised, as those VMs do not possess external IP
+
+</details>
+
+<details>
+<summary> Monitoring </summary>
+  
+Once the environment is deployed and the Ops Agent is installed on each VM, monitoring data becomes available in the Google Cloud Console. From the Cloud Monitoring dashboard, you can:
+  - View real-time metrics for all VMs (CPU, memory, disk, network).
+  - Inspect system and security logs in Cloud Logging (e.g., SSH attempts, system failures).
+  - Create dashboards for Bastion, application, and management VMs.
+  - Configure alerting policies, such as high CPU utilization or Bastion Host downtime.
+  - Use log-based metrics to detect suspicious activity (e.g., repeated failed SSH logins).
+  - This observability layer enables administrators to continuously verify correct operation of the multi-tier environment, detect misconfigurations, and quickly investigate potential security incidents.
+
+</details>
+
+<details> 
+<summary> Perform Security Tests </summary>
+
+Use the installed tools (vm-mgmt).
+
+1. Test Web Connectivity (Should SUCCEED) Verify that the management VM can reach the application VM on permitted ports (e.g., 80).
+
+```
+# Replace with actual internal IP of vm-app (e.g., 10.2.0.2)
+curl -I http://10.2.0.x
+```
+Expected Result: `HTTP/1.1 200 OK` (or similar response from web server).
+
+2. Test Port Scanning (Should show FILTERED/CLOSED). Scan the vm-app to ensure non-essential ports are blocked by the Firewall.
+
+```
+# Replace with actual internal IP of vm-app (e.g., 10.2.0.2)
+nmap -p 80,22,3306 10.2.0.x
+```
+Expected Result:
+
+- `Port 80: OPEN`
+- `Port 22: OPEN`
+- `Port 3306: FILTERED` (Blocked by Firewall - proving security works)
+
+3. Test Connectivity via Netcat Manually verify TCP handshake.
+
+```
+# Replace with actual internal IP of vm-app (e.g., 10.2.0.2)
+nc -vz 10.2.0.x 80
+```
+Expected Result: `Connection to 10.2.0.x 80 port [tcp/http] succeeded!`
+
+</details>
